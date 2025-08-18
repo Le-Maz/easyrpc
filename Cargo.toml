@@ -1,0 +1,19 @@
+[package]
+name = "easyrpc"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["server", "client", "tokio-io-transport", "tokio-tcp-connector"]
+server = []
+client = []
+tokio-io-transport = ["dep:tokio", "tokio/io-util", "tokio/rt"]
+tokio-tcp-connector = ["tokio-io-transport", "tokio/net", "tokio/sync"]
+
+[dependencies]
+ciborium = "^0.2.2"
+serde = "^1.0"
+tokio = { version = "^1.17", optional = true }
+
+[dev-dependencies]
+tokio = { version = "^1.17", features = ["rt", "macros", "time"] }
