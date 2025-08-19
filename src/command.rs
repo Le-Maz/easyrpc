@@ -25,20 +25,20 @@ where
     }
 }
 
-type RpcCommandFuture<Output> = Pin<Box<dyn Future<Output = Result<Output, RpcError>>>>;
+type RpcCommandFuture<Output> = Pin<Box<dyn Future<Output = Result<Output, RpcError>> + Send + Sync>>;
 
 pub struct RpcCommand<Args, Output>
 where
     Args: Tuple,
 {
-    inner: Box<dyn Fn(Args) -> RpcCommandFuture<Output>>,
+    inner: Box<dyn Fn(Args) -> RpcCommandFuture<Output> + Send + Sync>,
 }
 
 impl<Args, Output> RpcCommand<Args, Output>
 where
     Args: Tuple,
 {
-    pub(crate) fn new(inner: Box<dyn Fn(Args) -> RpcCommandFuture<Output>>) -> Self {
+    pub(crate) fn new(inner: Box<dyn Fn(Args) -> RpcCommandFuture<Output> + Send + Sync>) -> Self {
         Self { inner }
     }
 }
@@ -47,7 +47,7 @@ impl<Args, Output> FnOnce<Args> for RpcCommand<Args, Output>
 where
     Args: Tuple,
 {
-    type Output = Pin<Box<dyn Future<Output = Result<Output, RpcError>>>>;
+    type Output = Pin<Box<dyn Future<Output = Result<Output, RpcError>> + Send + Sync>>;
 
     extern "rust-call" fn call_once(self, args: Args) -> Self::Output {
         (self.inner)(args)

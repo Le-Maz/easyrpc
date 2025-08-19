@@ -1,6 +1,8 @@
 #[derive(Debug)]
 pub enum RpcError {
-    NotFound,
+    MissingDispatch,
+    ProcedureNotFound,
+    Initialization(Box<dyn std::error::Error + Send + Sync>),
     Deserialization(Box<dyn std::error::Error + Send + Sync>),
     Procedure(Box<dyn std::error::Error + Send + Sync>),
     Serialization(Box<dyn std::error::Error + Send + Sync>),

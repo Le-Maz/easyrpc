@@ -1,14 +1,10 @@
-#[cfg(feature = "server")]
-use std::pin::Pin;
-#[cfg(feature = "client")]
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::{
-    error::RpcError,
-    transport::{HandlerFn, RpcTransport},
-};
+#[cfg(feature = "server")]
+use crate::transport::HandlerFn;
+use crate::{error::RpcError, transport::RpcTransport};
 
 pub struct TokioIoTransport<Connector>
 where
@@ -134,7 +130,7 @@ where
         self: Arc<Self>,
         name: Arc<[u8]>,
         data: Vec<u8>,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send + Sync>> {
         Box::pin(self.call_inner(name, data))
     }
 
@@ -142,19 +138,19 @@ where
     fn listen(
         self: Arc<Self>,
         handler: HandlerFn,
-    ) -> Pin<Box<dyn Future<Output = Result<(), RpcError>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), RpcError>> + Send + Sync>> {
         Box::pin(self.listen_inner(handler))
     }
 }
 
 pub trait TokioIoConnector {
     #[cfg(feature = "server")]
-    fn accept(&self) -> impl Future<Output = Result<StreamPair, RpcError>> + Send;
+    fn accept(&self) -> impl Future<Output = Result<StreamPair, RpcError>> + Send + Sync;
     #[cfg(feature = "client")]
-    fn connect(&self) -> impl Future<Output = Result<StreamPair, RpcError>> + Send;
+    fn connect(&self) -> impl Future<Output = Result<StreamPair, RpcError>> + Send + Sync;
 }
 
 pub type StreamPair = (
-    Pin<Box<dyn AsyncRead + Send>>,
-    Pin<Box<dyn AsyncWrite + Send>>,
+    Pin<Box<dyn AsyncRead + Send + Sync>>,
+    Pin<Box<dyn AsyncWrite + Send + Sync>>,
 );

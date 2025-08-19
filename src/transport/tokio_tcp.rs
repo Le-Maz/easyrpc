@@ -1,11 +1,9 @@
 use std::net::SocketAddr;
 
-use tokio::{
-    net::{TcpListener, TcpStream},
-    sync::Mutex,
-};
-
 #[cfg(feature = "client")]
+use tokio::net::TcpStream;
+use tokio::{net::TcpListener, sync::Mutex};
+
 use crate::transport::tokio_io::StreamPair;
 use crate::{error::RpcError, transport::tokio_io::TokioIoConnector};
 
@@ -17,13 +15,29 @@ pub struct TokioTcpConnector {
 }
 
 impl TokioTcpConnector {
-    pub fn new(listener: Mutex<TcpListener>, address: SocketAddr) -> Self {
+    pub fn new(
+        #[cfg_attr(not(feature = "server"), allow(unused))] listener: Mutex<TcpListener>,
+        #[cfg_attr(not(feature = "client"), allow(unused))] address: SocketAddr,
+    ) -> Self {
         Self {
             #[cfg(feature = "server")]
             listener,
             #[cfg(feature = "client")]
             address,
         }
+    }
+
+    #[cfg(all(feature = "client", feature = "server"))]
+    pub async fn new_local() -> Result<Self, RpcError> {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .map_err(Into::into)
+            .map_err(RpcError::Initialization)?;
+        let address = listener
+            .local_addr()
+            .map_err(Into::into)
+            .map_err(RpcError::Initialization)?;
+        Ok(Self::new(Mutex::new(listener), address))
     }
 }
 

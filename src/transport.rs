@@ -6,9 +6,9 @@ use crate::error::RpcError;
 pub trait RpcTransport: Send + Sync + 'static {
     #[cfg(feature = "client")]
     fn call(self: Arc<Self>, name: Arc<[u8]>, data: Vec<u8>)
-    -> Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send>>;
+    -> Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send + Sync>>;
     #[cfg(feature = "server")]
-    fn listen(self: Arc<Self>, handler: HandlerFn) -> Pin<Box<dyn Future<Output = Result<(), RpcError>> + Send>>;
+    fn listen(self: Arc<Self>, handler: HandlerFn) -> Pin<Box<dyn Future<Output = Result<(), RpcError>> + Send + Sync>>;
 }
 
 #[cfg(feature = "server")]

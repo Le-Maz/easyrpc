@@ -21,6 +21,7 @@ impl RpcDispatch {
     pub fn new(transport: impl RpcTransport) -> Self {
         Self {
             transport: Arc::new(transport),
+            #[cfg(feature = "server")]
             commands: Default::default(),
         }
     }
@@ -28,6 +29,7 @@ impl RpcDispatch {
     pub fn register<Command, Args, Fut, Output>(
         &self,
         name: &str,
+        #[cfg_attr(not(feature = "server"), allow(unused))]
         command: Command,
     ) -> RpcCommand<Args, Output>
     where
@@ -79,7 +81,7 @@ impl RpcDispatch {
         let handler = Arc::new(move |name, data| {
             use std::pin::Pin;
 
-            let command = commands.get(name).ok_or(RpcError::NotFound);
+            let command = commands.get(name).ok_or(RpcError::ProcedureNotFound);
             Box::pin(async move {
                 let command = command?;
                 command(data).await
