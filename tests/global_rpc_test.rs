@@ -7,7 +7,7 @@
 use easyrpc::{
     error::RpcError,
     get_global_dispatch, init_global_dispatch, rpc,
-    transport::{tokio_io::TokioIoTransport, tokio_tcp::TokioTcpConnector},
+    transport::{tokio_io::TokioIoTransport, tokio_io::tcp::TokioTcpConnector},
 };
 
 rpc! {

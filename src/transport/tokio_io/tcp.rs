@@ -75,7 +75,7 @@ mod tests {
     use tokio::{net::TcpListener, sync::Mutex};
 
     use crate::transport::{
-        HandlerFn, RpcTransport, tokio_io::TokioIoTransport, tokio_tcp::TokioTcpConnector,
+        HandlerFn, RpcTransport, tokio_io::TokioIoTransport, tokio_io::tcp::TokioTcpConnector,
     };
 
     #[tokio::test]

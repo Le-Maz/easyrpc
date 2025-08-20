@@ -154,3 +154,9 @@ pub type StreamPair = (
     Pin<Box<dyn AsyncRead + Send + Sync>>,
     Pin<Box<dyn AsyncWrite + Send + Sync>>,
 );
+
+#[cfg(feature = "tokio-tcp-connector")]
+pub mod tcp;
+
+#[cfg(feature = "iroh-connector")]
+pub mod iroh;

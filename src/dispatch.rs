@@ -103,7 +103,7 @@ mod tests {
     use crate::{
         dispatch::RpcDispatch,
         error::RpcError,
-        transport::{tokio_io::TokioIoTransport, tokio_tcp::TokioTcpConnector},
+        transport::{tokio_io::TokioIoTransport, tokio_io::tcp::TokioTcpConnector},
     };
 
     async fn echo(text: String) -> Result<String, RpcError> {

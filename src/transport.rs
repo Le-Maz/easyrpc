@@ -18,5 +18,3 @@ type HandlerFut = Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send 
 
 #[cfg(feature = "tokio-io-transport")]
 pub mod tokio_io;
-#[cfg(feature = "tokio-tcp-connector")]
-pub mod tokio_tcp;

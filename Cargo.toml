@@ -4,14 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = ["server", "client", "tokio-io-transport", "tokio-tcp-connector"]
+default = ["server", "client", "tokio-io-transport", "tokio-tcp-connector", "iroh-connector"]
 server = []
 client = []
 tokio-io-transport = ["dep:tokio", "tokio/io-util", "tokio/rt"]
 tokio-tcp-connector = ["tokio-io-transport", "tokio/net", "tokio/sync"]
+iroh-connector = ["dep:iroh", "tokio-io-transport", "dep:rand"]
 
 [dependencies]
 ciborium = "^0.2.2"
+iroh = { version = "0.91.2", optional = true }
+rand = { version = "=0.8.5", optional = true }
 serde = "^1.0"
 tokio = { version = "^1.17", optional = true }
 
