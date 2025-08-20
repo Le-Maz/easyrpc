@@ -13,7 +13,7 @@ iroh-connector = ["dep:iroh", "tokio-io-transport", "dep:rand", "tokio/sync"]
 
 [dependencies]
 ciborium = "^0.2.2"
-iroh = { version = "0.91.2", optional = true }
+iroh = { version = "0.91.2", default-features = false, optional = true }
 rand = { version = "=0.8.5", optional = true }
 serde = "^1.0"
 tokio = { version = "^1.17", optional = true }
