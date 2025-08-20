@@ -9,7 +9,7 @@ server = []
 client = []
 tokio-io-transport = ["dep:tokio", "tokio/io-util", "tokio/rt"]
 tokio-tcp-connector = ["tokio-io-transport", "tokio/net", "tokio/sync"]
-iroh-connector = ["dep:iroh", "tokio-io-transport", "dep:rand"]
+iroh-connector = ["dep:iroh", "tokio-io-transport", "dep:rand", "tokio/sync"]
 
 [dependencies]
 ciborium = "^0.2.2"
