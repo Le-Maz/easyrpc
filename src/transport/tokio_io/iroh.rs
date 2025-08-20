@@ -81,12 +81,16 @@ impl IrohConnector {
         builder: impl FnOnce() -> iroh::endpoint::Builder,
         alpn: &[u8],
     ) -> Result<(Router, mpsc::Receiver<StreamPair>), RpcError> {
+        use iroh::Watcher;
+
         let server_endpoint = builder()
             .alpns(vec![alpn.to_vec()])
             .bind()
             .await
             .map_err(Into::into)
             .map_err(RpcError::Connection)?;
+
+        server_endpoint.node_addr().initialized().await;
 
         let (send, recv) = mpsc::channel(16);
         let protocol = EasyRpcProtocol::from(send);
