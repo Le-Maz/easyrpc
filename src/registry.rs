@@ -32,7 +32,7 @@ impl ServerCommandBox {
     where
         Command: IntoRpcCommand<Args, Fut, Output> + Clone,
         Args: Tuple + Serialize + DeserializeOwned,
-        Fut: Future<Output = Result<Output, RpcError>> + Send + Sync,
+        Fut: Future<Output = Result<Output, RpcError>> + Send,
         Output: Serialize + DeserializeOwned,
     {
         Self(Arc::new(move |args_bytes| {
@@ -60,4 +60,4 @@ impl Deref for ServerCommandBox {
     }
 }
 
-type CommandBoxFuture = Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send + Sync>>;
+type CommandBoxFuture = Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send>>;

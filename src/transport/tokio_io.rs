@@ -130,7 +130,7 @@ where
         self: Arc<Self>,
         name: Arc<[u8]>,
         data: Vec<u8>,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send + Sync>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send>> {
         Box::pin(self.call_inner(name, data))
     }
 
@@ -138,7 +138,7 @@ where
     fn listen(
         self: Arc<Self>,
         handler: HandlerFn,
-    ) -> Pin<Box<dyn Future<Output = Result<(), RpcError>> + Send + Sync>> {
+    ) -> Pin<Box<dyn Future<Output = Result<(), RpcError>> + Send>> {
         Box::pin(self.listen_inner(handler))
     }
 }

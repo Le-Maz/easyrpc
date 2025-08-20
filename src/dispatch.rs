@@ -35,7 +35,7 @@ impl RpcDispatch {
     where
         Command: IntoRpcCommand<Args, Fut, Output> + Clone + 'static,
         Args: Tuple + Serialize + DeserializeOwned,
-        Fut: Future<Output = Result<Output, RpcError>> + Send + Sync + 'static,
+        Fut: Future<Output = Result<Output, RpcError>> + Send + 'static,
         Output: Serialize + DeserializeOwned,
     {
         #[cfg(feature = "server")]
@@ -85,7 +85,7 @@ impl RpcDispatch {
             Box::pin(async move {
                 let command = command?;
                 command(data).await
-            }) as Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Sync + Send>>
+            }) as Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send>>
         });
         self.transport.clone().listen(handler).await
     }
