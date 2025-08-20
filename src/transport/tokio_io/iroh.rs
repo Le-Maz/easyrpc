@@ -2,7 +2,6 @@ use std::fmt::{self, Display};
 
 use tokio::sync::Mutex;
 
-#[cfg(feature = "server")]
 use tokio::sync::mpsc;
 
 use crate::{error::RpcError, transport::tokio_io::TokioIoConnector};
