@@ -38,33 +38,33 @@ where
             }
             Err(e) => {
                 error!("Failed to connect: {:?}", e);
-                return Err(RpcError::Connection(e.into()));
+                return Err(RpcError::Connection(Box::new(e).into()));
             }
         };
 
         if let Err(e) = write_half.write_u16(name.len() as u16).await {
             error!("Failed to write name length: {:?}", e);
-            return Err(RpcError::Connection(e.into()));
+            return Err(RpcError::Connection(Box::new(e).into()));
         }
 
         if let Err(e) = write_half.write_u32(data.len() as u32).await {
             error!("Failed to write data length: {:?}", e);
-            return Err(RpcError::Connection(e.into()));
+            return Err(RpcError::Connection(Box::new(e).into()));
         }
 
         if let Err(e) = write_half.write_all(&name).await {
             error!("Failed to write name bytes: {:?}", e);
-            return Err(RpcError::Connection(e.into()));
+            return Err(RpcError::Connection(Box::new(e).into()));
         }
 
         if let Err(e) = write_half.write_all(&data).await {
             error!("Failed to write data bytes: {:?}", e);
-            return Err(RpcError::Connection(e.into()));
+            return Err(RpcError::Connection(Box::new(e).into()));
         }
 
         if let Err(e) = write_half.flush().await {
             error!("Failed to flush writer: {:?}", e);
-            return Err(RpcError::Connection(e.into()));
+            return Err(RpcError::Connection(Box::new(e).into()));
         }
 
         let response_len = match read_half.read_u32().await {
@@ -74,14 +74,14 @@ where
             }
             Err(e) => {
                 error!("Failed to read response length: {:?}", e);
-                return Err(RpcError::Connection(e.into()));
+                return Err(RpcError::Connection(Box::new(e).into()));
             }
         };
 
         let mut response = vec![0; response_len as usize];
         if let Err(e) = read_half.read(&mut response).await {
             error!("Failed to read response data: {:?}", e);
-            return Err(RpcError::Connection(e.into()));
+            return Err(RpcError::Connection(Box::new(e).into()));
         }
 
         // Optional EOT signal
@@ -107,7 +107,7 @@ where
                 }
                 Err(e) => {
                     error!("Failed to accept connection: {:?}", e);
-                    return Err(crate::error::RpcError::Connection(e.into()));
+                    return Err(crate::error::RpcError::Connection(Box::new(e).into()));
                 }
             };
 
