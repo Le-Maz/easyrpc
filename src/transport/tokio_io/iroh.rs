@@ -94,7 +94,7 @@ impl IrohConnector {
         let (send, recv) = mpsc::channel(16);
         let protocol = EasyRpcProtocol::from(send);
         let router = Router::builder(server_endpoint)
-            .accept(alpn.to_vec(), protocol)
+            .accept(alpn, protocol)
             .spawn();
 
         Ok((router, recv))

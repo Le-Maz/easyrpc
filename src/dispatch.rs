@@ -47,31 +47,11 @@ impl RpcDispatch {
         {
             let name = Arc::<[u8]>::from(name.as_bytes());
             let transport = self.transport.clone();
-            RpcCommand::new(Box::new(move |args| {
-                let transport = transport.clone();
-                let mut data = Vec::new();
-                let name = name.clone();
-                let serialization_result = ciborium::into_writer(&args, &mut data);
-                Box::pin(async move {
-                    use std::io::Cursor;
-
-                    serialization_result
-                        .map_err(Into::into)
-                        .map_err(RpcError::Serialization)?;
-                    let fut = transport.call(name, data);
-
-                    let response = fut.await?;
-                    let output = ciborium::from_reader(Cursor::new(response))
-                        .map_err(Into::into)
-                        .map_err(RpcError::Deserialization)?;
-
-                    Ok(output)
-                })
-            }))
+            RpcCommand::Client(transport, name)
         }
         #[cfg(not(feature = "client"))]
         {
-            RpcCommand::new(Box::new(move |args| Box::pin(command.call(args))))
+            RpcCommand::Server(Box::new(move |args| Box::pin(command.call(args))))
         }
     }
 
