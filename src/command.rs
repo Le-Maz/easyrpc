@@ -37,7 +37,9 @@ where
     Args: Tuple + 'static,
     Output: 'static,
 {
+    #[cfg(feature = "server")]
     Server(&'static (dyn Fn<Args, Output = RpcCommandFuture<Output>> + Send + Sync)),
+    #[cfg(feature = "client")]
     Client(Arc<dyn RpcTransport + Send + Sync + 'static>, Arc<[u8]>),
 }
 
@@ -50,7 +52,9 @@ where
 
     extern "rust-call" fn call_once(self, args: Args) -> Self::Output {
         match self {
+            #[cfg(feature = "server")]
             RpcCommand::Server(closure) => closure.call_once(args),
+            #[cfg(feature = "client")]
             RpcCommand::Client(transport, name) => {
                 let mut data = Vec::new();
                 let serialization_result = ciborium::into_writer(&args, &mut data);
@@ -81,7 +85,9 @@ where
 {
     extern "rust-call" fn call_mut(&mut self, args: Args) -> Self::Output {
         match self {
+            #[cfg(feature = "server")]
             RpcCommand::Server(closure) => closure.call_mut(args),
+            #[cfg(feature = "client")]
             RpcCommand::Client(transport, name) => {
                 let mut data = Vec::new();
                 let serialization_result = ciborium::into_writer(&args, &mut data);
@@ -114,7 +120,9 @@ where
 {
     extern "rust-call" fn call(&self, args: Args) -> Self::Output {
         match self {
+            #[cfg(feature = "server")]
             RpcCommand::Server(closure) => Fn::call(&closure, args),
+            #[cfg(feature = "client")]
             RpcCommand::Client(transport, name) => {
                 let mut data = Vec::new();
                 let serialization_result = ciborium::into_writer(&args, &mut data);
