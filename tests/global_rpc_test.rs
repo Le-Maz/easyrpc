@@ -33,6 +33,9 @@ async fn global_rpc_test() -> Result<(), RpcError> {
     let connector = TokioTcpConnector::new_local().await?;
     let transport = TokioIoTransport::new(connector);
     init_global_dispatch(transport);
+    do_nothing.register();
+    echo.register();
+    add.register();
     let handle = tokio::spawn(get_global_dispatch()?.listen());
     assert_eq!(echo("test".to_string()).await?, "test");
     assert_eq!(add(9, 10).await?, 21);

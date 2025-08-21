@@ -26,16 +26,24 @@ pub fn get_global_dispatch() -> Result<&'static RpcDispatch, RpcError> {
 #[macro_export]
 macro_rules! rpc {
     ($($vis:vis async fn $name:ident ($($arg:ident : $arg_type:ty),*) -> Result<$output:ty, $error:ty> $body: block)*) => {
-        $($vis async fn $name($($arg: $arg_type),*) -> Result<$output, $crate::error::RpcError> {
-            #[cfg(feature = "server")]
-            async fn inner($($arg: $arg_type),*) -> Result<$output, $error> $body
-            #[cfg(not(feature = "server"))]
-            async fn inner($($arg: $arg_type),*) -> Result<$output, $error> { unimplemented!(); }
-            static COMMAND: ::std::sync::OnceLock<$crate::command::RpcCommand<($($arg_type,)*), $output>> = ::std::sync::OnceLock::new();
-            let command = COMMAND.get_or_init(|| {
-                $crate::get_global_dispatch().unwrap().register(concat!(module_path!(), "::", stringify!($name)), inner)
-            });
-            command($($arg),*).await
-        })*
+        $(
+            #[allow(non_upper_case_globals)]
+            $vis static $name: $crate::command::GlobalRpcCommand<($($arg_type,)*), $output> = {
+                #[cfg(feature = "server")]
+                {
+                    $crate::command::GlobalRpcCommand::new(
+                        concat!(module_path!(), "::", stringify!($name)),
+                        &(|$($arg: $arg_type),*| -> $crate::command::RpcCommandFuture<$output> { Box::pin(async move $body) }),
+                    )
+                }
+                #[cfg(not(feature = "server"))]
+                {
+                    $crate::command::GlobalRpcCommand::new(
+                        concat!(module_path!(), "::", stringify!($name)),
+                        &(|$($arg: $arg_type),*| -> $crate::command::RpcCommandFuture<$output>{ unimplemented!(); }),
+                    )
+                }
+            };
+        )*
     };
 }

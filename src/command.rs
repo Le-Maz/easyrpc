@@ -1,8 +1,13 @@
-use std::{marker::Tuple, pin::Pin, sync::Arc};
+use std::{
+    marker::Tuple,
+    ops::Deref,
+    pin::Pin,
+    sync::{Arc, OnceLock},
+};
 
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::{error::RpcError, transport::RpcTransport};
+use crate::{error::RpcError, get_global_dispatch, transport::RpcTransport};
 
 pub trait IntoRpcCommand<Args, Fut, Output>: Send + Sync + 'static
 where
@@ -25,13 +30,14 @@ where
     }
 }
 
-type RpcCommandFuture<Output> = Pin<Box<dyn Future<Output = Result<Output, RpcError>> + Send>>;
+pub type RpcCommandFuture<Output> = Pin<Box<dyn Future<Output = Result<Output, RpcError>> + Send>>;
 
 pub enum RpcCommand<Args, Output>
 where
-    Args: Tuple,
+    Args: Tuple + 'static,
+    Output: 'static,
 {
-    Server(Box<dyn Fn<Args, Output = RpcCommandFuture<Output>> + Send + Sync>),
+    Server(&'static (dyn Fn<Args, Output = RpcCommandFuture<Output>> + Send + Sync)),
     Client(Arc<dyn RpcTransport + Send + Sync>, Arc<[u8]>),
 }
 
@@ -131,6 +137,49 @@ where
                 })
             }
         }
+    }
+}
+
+pub struct GlobalRpcCommand<Args, Output>
+where
+    Args: Tuple + Serialize + DeserializeOwned + 'static,
+    Output: Serialize + DeserializeOwned + 'static,
+{
+    pub(crate) name: &'static str,
+    pub(crate) inner: &'static (dyn Fn<Args, Output = RpcCommandFuture<Output>> + Send + Sync),
+    pub(crate) command: OnceLock<RpcCommand<Args, Output>>,
+}
+
+impl<Args, Output> GlobalRpcCommand<Args, Output>
+where
+    Args: Tuple + Serialize + DeserializeOwned,
+    Output: Serialize + DeserializeOwned,
+{
+    pub const fn new(
+        name: &'static str,
+        inner: &'static (dyn Fn<Args, Output = RpcCommandFuture<Output>> + Send + Sync),
+    ) -> Self {
+        Self {
+            name,
+            inner,
+            command: OnceLock::new(),
+        }
+    }
+    pub fn register<'command>(&'command self) -> &'command RpcCommand<Args, Output> {
+        self.command
+            .get_or_init(|| get_global_dispatch().unwrap().register_global(self))
+    }
+}
+
+impl<Args, Output> Deref for GlobalRpcCommand<Args, Output>
+where
+    Args: Tuple + Serialize + DeserializeOwned + 'static,
+    Output: Serialize + DeserializeOwned + 'static,
+{
+    type Target = RpcCommand<Args, Output>;
+
+    fn deref(&self) -> &Self::Target {
+        self.register()
     }
 }
 

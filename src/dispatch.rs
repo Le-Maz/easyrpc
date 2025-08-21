@@ -5,7 +5,7 @@ use serde::{Serialize, de::DeserializeOwned};
 #[cfg(feature = "server")]
 use crate::registry::{CommandRegistry, ServerCommandBox};
 use crate::{
-    command::{IntoRpcCommand, RpcCommand},
+    command::{GlobalRpcCommand, RpcCommand},
     error::RpcError,
     transport::RpcTransport,
 };
@@ -26,32 +26,28 @@ impl RpcDispatch {
         }
     }
 
-    pub fn register<Command, Args, Fut, Output>(
-        &self,
-        name: &str,
-        #[cfg_attr(not(feature = "server"), allow(unused))]
-        command: Command,
+    pub(crate) fn register_global<Args, Output>(
+        &'static self,
+        global_command: &GlobalRpcCommand<Args, Output>,
     ) -> RpcCommand<Args, Output>
     where
-        Command: IntoRpcCommand<Args, Fut, Output> + Clone + 'static,
         Args: Tuple + Serialize + DeserializeOwned,
-        Fut: Future<Output = Result<Output, RpcError>> + Send + 'static,
         Output: Serialize + DeserializeOwned,
     {
         #[cfg(feature = "server")]
         self.commands.insert(
-            name.as_bytes().to_vec(),
-            ServerCommandBox::new(command.clone()),
+            global_command.name.as_bytes().to_vec(),
+            ServerCommandBox::new(global_command.inner),
         );
         #[cfg(feature = "client")]
         {
-            let name = Arc::<[u8]>::from(name.as_bytes());
+            let name = Arc::<[u8]>::from(global_command.name.as_bytes());
             let transport = self.transport.clone();
             RpcCommand::Client(transport, name)
         }
         #[cfg(not(feature = "client"))]
         {
-            RpcCommand::Server(Box::new(move |args| Box::pin(command.call(args))))
+            RpcCommand::Server(Box::new(global_command.inner))
         }
     }
 
@@ -68,42 +64,5 @@ impl RpcDispatch {
             }) as Pin<Box<dyn Future<Output = Result<Vec<u8>, RpcError>> + Send>>
         });
         self.transport.clone().listen(handler).await
-    }
-}
-
-#[cfg(all(
-    feature = "server",
-    feature = "client",
-    feature = "tokio-tcp-connector"
-))]
-#[cfg(test)]
-mod tests {
-    use tokio::{net::TcpListener, sync::Mutex};
-
-    use crate::{
-        dispatch::RpcDispatch,
-        error::RpcError,
-        transport::{tokio_io::TokioIoTransport, tokio_io::tcp::TokioTcpConnector},
-    };
-
-    async fn echo(text: String) -> Result<String, RpcError> {
-        Ok(text)
-    }
-
-    #[tokio::test]
-    async fn call_command() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        let transport = TokioIoTransport::new(TokioTcpConnector::new(Mutex::new(listener), addr));
-        let dispatch = RpcDispatch::new(transport);
-        let command = dispatch.register("echo", echo);
-        tokio::select! {
-            _ = dispatch.listen() => {
-                panic!("Listener finished first");
-            }
-            Ok(value) = command("Lorem ipsum".to_string()) => {
-                assert_eq!(value, "Lorem ipsum");
-            }
-        }
     }
 }
