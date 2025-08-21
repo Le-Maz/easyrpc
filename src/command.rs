@@ -38,7 +38,7 @@ where
     Output: 'static,
 {
     Server(&'static (dyn Fn<Args, Output = RpcCommandFuture<Output>> + Send + Sync)),
-    Client(Arc<dyn RpcTransport + Send + Sync>, Arc<[u8]>),
+    Client(Arc<dyn RpcTransport + Send + Sync + 'static>, Arc<[u8]>),
 }
 
 impl<Args, Output> FnOnce<Args> for RpcCommand<Args, Output>
