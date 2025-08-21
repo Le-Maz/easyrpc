@@ -23,103 +23,153 @@ where
 
     #[cfg(feature = "client")]
     #[inline(always)]
+    #[instrument(skip_all, fields(name = %String::from_utf8_lossy(&name)))]
     async fn call_inner(
         self: Arc<Self>,
         name: Arc<[u8]>,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, RpcError> {
-        let (mut read_half, mut write_half) = self.connector.connect().await?;
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (mut read_half, mut write_half) = match self.connector.connect().await {
+            Ok(conn) => {
+                debug!("Connection established.");
+                conn
+            }
+            Err(e) => {
+                error!("Failed to connect: {:?}", e);
+                return Err(RpcError::Connection(e.into()));
+            }
+        };
 
-        write_half
-            .write_u16(name.len() as u16)
-            .await
-            .map_err(Into::into)
-            .map_err(RpcError::Connection)?;
-        write_half
-            .write_u32(data.len() as u32)
-            .await
-            .map_err(Into::into)
-            .map_err(RpcError::Connection)?;
+        if let Err(e) = write_half.write_u16(name.len() as u16).await {
+            error!("Failed to write name length: {:?}", e);
+            return Err(RpcError::Connection(e.into()));
+        }
 
-        write_half
-            .write_all(&name)
-            .await
-            .map_err(Into::into)
-            .map_err(RpcError::Connection)?;
-        write_half
-            .write_all(&data)
-            .await
-            .map_err(Into::into)
-            .map_err(RpcError::Connection)?;
+        if let Err(e) = write_half.write_u32(data.len() as u32).await {
+            error!("Failed to write data length: {:?}", e);
+            return Err(RpcError::Connection(e.into()));
+        }
 
-        write_half
-            .flush()
-            .await
-            .map_err(Into::into)
-            .map_err(RpcError::Connection)?;
+        if let Err(e) = write_half.write_all(&name).await {
+            error!("Failed to write name bytes: {:?}", e);
+            return Err(RpcError::Connection(e.into()));
+        }
 
-        let response_len = read_half
-            .read_u32()
-            .await
-            .map_err(Into::into)
-            .map_err(RpcError::Connection)?;
+        if let Err(e) = write_half.write_all(&data).await {
+            error!("Failed to write data bytes: {:?}", e);
+            return Err(RpcError::Connection(e.into()));
+        }
+
+        if let Err(e) = write_half.flush().await {
+            error!("Failed to flush writer: {:?}", e);
+            return Err(RpcError::Connection(e.into()));
+        }
+
+        let response_len = match read_half.read_u32().await {
+            Ok(len) => {
+                debug!("Response length received: {}", len);
+                len
+            }
+            Err(e) => {
+                error!("Failed to read response length: {:?}", e);
+                return Err(RpcError::Connection(e.into()));
+            }
+        };
+
         let mut response = vec![0; response_len as usize];
-        read_half
-            .read(&mut response)
-            .await
-            .map_err(Into::into)
-            .map_err(RpcError::Connection)?;
+        if let Err(e) = read_half.read(&mut response).await {
+            error!("Failed to read response data: {:?}", e);
+            return Err(RpcError::Connection(e.into()));
+        }
 
-        const EOT: u8 = 4;
-        let _ = write_half.write_u8(EOT).await;
+        // Optional EOT signal
+        if let Err(e) = write_half.write_u8(4).await {
+            debug!("Failed to write EOT (ignored): {:?}", e);
+        }
 
         Ok(response)
     }
 
     #[cfg(feature = "server")]
     #[inline(always)]
+    #[instrument(skip_all)]
     async fn listen_inner(
         self: Arc<Self>,
         handler: HandlerFn,
     ) -> Result<(), crate::error::RpcError> {
         loop {
-            let (mut read_half, mut write_half) = self.connector.accept().await?;
+            let (mut read_half, mut write_half) = match self.connector.accept().await {
+                Ok(conn) => {
+                    debug!("Accepted new connection");
+                    conn
+                }
+                Err(e) => {
+                    error!("Failed to accept connection: {:?}", e);
+                    return Err(crate::error::RpcError::Connection(e.into()));
+                }
+            };
+
             let handler = handler.clone();
             tokio::spawn(async move {
-                use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-                let Ok(name_len) = read_half.read_u16().await else {
-                    return;
+                let name_len = match read_half.read_u16().await {
+                    Ok(len) => len,
+                    Err(e) => {
+                        error!("Failed to read name length: {:?}", e);
+                        return;
+                    }
                 };
-                let Ok(data_len) = read_half.read_u32().await else {
-                    return;
+
+                let data_len = match read_half.read_u32().await {
+                    Ok(len) => len,
+                    Err(e) => {
+                        error!("Failed to read data length: {:?}", e);
+                        return;
+                    }
                 };
 
                 let mut name_buf = vec![0; name_len as usize];
-                let Ok(_) = read_half.read_exact(&mut name_buf).await else {
+                if let Err(e) = read_half.read_exact(&mut name_buf).await {
+                    error!("Failed to read name buffer: {:?}", e);
                     return;
-                };
+                }
+
                 let mut data_buf = vec![0; data_len as usize];
-                let Ok(_) = read_half.read_exact(&mut data_buf).await else {
+                if let Err(e) = read_half.read_exact(&mut data_buf).await {
+                    error!("Failed to read data buffer: {:?}", e);
                     return;
+                }
+
+                let response = match handler(name_buf.clone(), data_buf).await {
+                    Ok(resp) => resp,
+                    Err(e) => {
+                        error!("Handler returned error: {:?}", e);
+                        return;
+                    }
                 };
 
-                let Ok(response) = handler(name_buf, data_buf).await else {
+                if let Err(e) = write_half.write_u32(response.len() as u32).await {
+                    error!("Failed to write response length: {:?}", e);
                     return;
-                };
+                }
 
-                let Ok(_) = write_half.write_u32(response.len() as u32).await else {
+                if let Err(e) = write_half.write_all(&response).await {
+                    error!("Failed to write response data: {:?}", e);
                     return;
-                };
-                let Ok(_) = write_half.write_all(&response).await else {
-                    return;
-                };
+                }
 
-                let Ok(_) = write_half.flush().await else {
+                if let Err(e) = write_half.flush().await {
+                    error!("Failed to flush write stream: {:?}", e);
                     return;
-                };
-                let _ = read_half.read_u8().await;
+                }
+
+                if let Err(e) = read_half.read_u8().await {
+                    debug!("Failed to read EOT (ignored): {:?}", e);
+                }
+
+                debug!(
+                    "Successfully handled RPC: name = {}",
+                    String::from_utf8_lossy(&name_buf)
+                );
             });
         }
     }

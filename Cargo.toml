@@ -16,6 +16,7 @@ ciborium = "^0.2.2"
 iroh = { version = "0.91.2", default-features = false, optional = true }
 rand = { version = "=0.8.5", optional = true }
 serde = "^1.0"
+tracing = "0.1"
 tokio = { version = "^1.17", optional = true }
 
 [dev-dependencies]
