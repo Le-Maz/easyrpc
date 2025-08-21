@@ -1,3 +1,5 @@
+#[cfg(feature = "client")]
+use std::marker::PhantomData;
 use std::{
     marker::Tuple,
     ops::Deref,
@@ -40,7 +42,7 @@ where
     #[cfg(feature = "server")]
     Server(&'static (dyn Fn<Args, Output = RpcCommandFuture<Output>> + Send + Sync)),
     #[cfg(feature = "client")]
-    Client(Arc<dyn RpcTransport + Send + Sync + 'static>, Arc<[u8]>),
+    Client(Arc<dyn RpcTransport + Send + Sync + 'static>, Arc<[u8]>, PhantomData<(Args, Output)>),
 }
 
 impl<Args, Output> FnOnce<Args> for RpcCommand<Args, Output>
@@ -55,7 +57,7 @@ where
             #[cfg(feature = "server")]
             RpcCommand::Server(closure) => closure.call_once(args),
             #[cfg(feature = "client")]
-            RpcCommand::Client(transport, name) => {
+            RpcCommand::Client(transport, name, _) => {
                 let mut data = Vec::new();
                 let serialization_result = ciborium::into_writer(&args, &mut data);
                 Box::pin(async move {
@@ -88,7 +90,7 @@ where
             #[cfg(feature = "server")]
             RpcCommand::Server(closure) => closure.call_mut(args),
             #[cfg(feature = "client")]
-            RpcCommand::Client(transport, name) => {
+            RpcCommand::Client(transport, name, _) => {
                 let mut data = Vec::new();
                 let serialization_result = ciborium::into_writer(&args, &mut data);
                 let transport = transport.clone();
@@ -123,7 +125,7 @@ where
             #[cfg(feature = "server")]
             RpcCommand::Server(closure) => Fn::call(&closure, args),
             #[cfg(feature = "client")]
-            RpcCommand::Client(transport, name) => {
+            RpcCommand::Client(transport, name, _) => {
                 let mut data = Vec::new();
                 let serialization_result = ciborium::into_writer(&args, &mut data);
                 let transport = transport.clone();
@@ -154,6 +156,7 @@ where
     Output: Serialize + DeserializeOwned + 'static,
 {
     pub(crate) name: &'static str,
+    #[allow(dead_code)]
     pub(crate) inner: &'static (dyn Fn<Args, Output = RpcCommandFuture<Output>> + Send + Sync),
     pub(crate) command: OnceLock<RpcCommand<Args, Output>>,
 }
@@ -173,7 +176,7 @@ where
             command: OnceLock::new(),
         }
     }
-    pub fn register<'command>(&'command self) -> &'command RpcCommand<Args, Output> {
+    pub fn register(&self) -> &RpcCommand<Args, Output> {
         self.command
             .get_or_init(|| get_global_dispatch().unwrap().register_global(self))
     }

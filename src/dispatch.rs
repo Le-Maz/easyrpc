@@ -2,12 +2,14 @@ use std::{marker::Tuple, sync::Arc};
 
 use serde::{Serialize, de::DeserializeOwned};
 
-#[cfg(feature = "server")]
-use crate::registry::{CommandRegistry, ServerCommandBox};
 use crate::{
     command::{GlobalRpcCommand, RpcCommand},
-    error::RpcError,
     transport::RpcTransport,
+};
+#[cfg(feature = "server")]
+use crate::{
+    error::RpcError,
+    registry::{CommandRegistry, ServerCommandBox},
 };
 
 #[derive(Clone)]
@@ -41,9 +43,11 @@ impl RpcDispatch {
         );
         #[cfg(feature = "client")]
         {
+            use std::marker::PhantomData;
+
             let name = Arc::<[u8]>::from(global_command.name.as_bytes());
             let transport = self.transport.clone();
-            RpcCommand::Client(transport, name)
+            RpcCommand::Client(transport, name, PhantomData::<(Args, Output)>)
         }
         #[cfg(not(feature = "client"))]
         {
