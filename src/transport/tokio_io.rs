@@ -71,6 +71,9 @@ where
             .map_err(Into::into)
             .map_err(RpcError::Connection)?;
 
+        const EOT: u8 = 4;
+        let _ = write_half.write_u8(EOT).await;
+
         Ok(response)
     }
 
@@ -116,6 +119,7 @@ where
                 let Ok(_) = write_half.flush().await else {
                     return;
                 };
+                let _ = read_half.read_u8().await;
             });
         }
     }
