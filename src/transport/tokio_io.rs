@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tracing::{debug, error};
+use tracing::{debug, error, instrument};
 
 #[cfg(feature = "server")]
 use crate::transport::HandlerFn;
@@ -38,7 +38,7 @@ where
             }
             Err(e) => {
                 error!("Failed to connect: {:?}", e);
-                return Err(RpcError::Connection(Box::new(e).into()));
+                return Err(e);
             }
         };
 
@@ -107,7 +107,7 @@ where
                 }
                 Err(e) => {
                     error!("Failed to accept connection: {:?}", e);
-                    return Err(crate::error::RpcError::Connection(Box::new(e).into()));
+                    return Err(e);
                 }
             };
 
