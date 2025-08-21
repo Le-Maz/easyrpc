@@ -47,7 +47,7 @@ impl RpcDispatch {
         }
         #[cfg(not(feature = "client"))]
         {
-            RpcCommand::Server(Box::new(global_command.inner))
+            RpcCommand::Server(global_command.inner)
         }
     }
 
